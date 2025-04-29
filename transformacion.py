@@ -6,6 +6,7 @@ import os
 from PIL import Image
 from tqdm import tqdm
 from pathlib import Path
+from pydicom.multival import MultiValue
 
 def extraerDatosYMedatados(file_path, output_dir, index):
     # Cargar el archivo DICOM
@@ -34,7 +35,7 @@ def extraerDatosYMedatados(file_path, output_dir, index):
         print(f"Imagen {index}: Valor máximo de píxel:", np.max(pixel_array))
 
         def obtenerValorUnico(valor):
-            if isinstance(valor, list):
+            if isinstance(valor, MultiValue):
                 return float(valor[0])
             return float(valor)
 
@@ -60,7 +61,7 @@ def extraerDatosYMedatados(file_path, output_dir, index):
         # Crear la imagen desde el array de píxeles
         image = Image.fromarray(pixel_array)
 
-        # Guardar la imagen como PNG
+        # Guardar la imagen
         image_file = os.path.join(output_dir, f"image_{index}.png")
         image.save(image_file)
         print(f"Imagen {index} guardada en: {image_file}")
@@ -68,14 +69,15 @@ def extraerDatosYMedatados(file_path, output_dir, index):
         print(f"El archivo DICOM {index} no contiene datos de imagen.")
 
 # Ruta del directorio con archivos DICOM y directorio de salida
-dicom_directory = "E:\ImagenesDICOM\listaImagenes"
-output_directory = Path("E:\ResultadoDICOM")
+dicom_directory = "D:/ImagenesDICOM/listaImagenes"
+output_directory = Path("D:/ResultadoDICOM")
 if output_directory.exists():
     for file in output_directory.iterdir():
         if file.is_file() or file.is_symlink():
             file.unlink() #Elimina un archivo o un acceso directo
         elif file.is_dir():
             shutil.rmtree(file)#Borra carpetas y su contenido
+
 # Crear el directorio de salida si no existe
 output_directory.mkdir(parents=True, exist_ok=True)
 
