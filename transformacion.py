@@ -62,7 +62,7 @@ def extraerDatosYMedatados(file_path, output_dir, index):
         image = Image.fromarray(pixel_array)
 
         # Guardar la imagen
-        image_file = os.path.join(output_dir, f"image_{index}.png")
+        image_file = os.path.join(output_dir, f"image_{index}.jpg")
         image.save(image_file)
         print(f"Imagen {index} guardada en: {image_file}")
     else:
