@@ -116,8 +116,9 @@ def extraerImagenJPG(fileDicom, output_img, output_csv, index):
 
 def main():
 
-    dicom_directory = "Modulo_DICOM\ArchivosDICOM"
-    project_root = os.path.dirname(os.path.abspath(__file__))  # 
+
+    dicom_directory = "ArchivosDICOM"
+    project_root = os.path.dirname(os.path.abspath(__file__))  #
     output_metadata = os.path.join(project_root, "ResultadoDICOM", "metadata")
     output_images = os.path.join(project_root, "ResultadoDICOM", "images")
     output_csv_dir = os.path.join(project_root, "ResultadoDICOM", "caracteristicas")
@@ -130,6 +131,8 @@ def main():
     os.makedirs(output_images, exist_ok=True)
     os.makedirs(output_csv_dir, exist_ok=True)
     #dicom_files = [f for f in os.listdir(dicom_directory) if f.endswith('.dcm')]
+    print("Ruta absoluta buscada:", os.path.abspath(dicom_directory))
+    print("¿Existe la carpeta?", os.path.exists(dicom_directory))
 
     dicom_files = []
     for subdir, _, files in os.walk(dicom_directory):  # Recorrer subdirectorios
@@ -138,8 +141,8 @@ def main():
                 dicom_files.append(os.path.abspath(os.path.join(subdir, file)))
 
     # Procesar n archivos que deseemos, para este caso 5 a modo de prueba
-    for index, dicom_file in enumerate(dicom_files[:15]):
-        dicom_file_path = os.path.join(dicom_directory, dicom_file)
+    for index, dicom_file in enumerate(dicom_files[:50]):
+        dicom_file_path = dicom_file
         extraerDatosYMedatados(dicom_file_path, output_metadata, output_images, output_csv, index + 1)
 
 if __name__ == "__main__":
