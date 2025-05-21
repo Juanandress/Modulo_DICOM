@@ -22,7 +22,6 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalización basada en ImageNet
 ])
 
-
 def extraccionCaracteristicas(image_path):
     """ Extrae características de una imagen usando ResNet-18 """
     image = Image.open(image_path).convert("RGB")  # Convertir a RGB para compatibilidad con el modelo
@@ -30,24 +29,7 @@ def extraccionCaracteristicas(image_path):
 
     with torch.no_grad():
         caracteristicas = extractorCaracteristicas(image)
-
     return caracteristicas.squeeze().numpy()  # Convertir a numpy
-
-def guardarCaracteristicasCsv(dicCaracteristicas, output_csv):
-    """ Guarda los vectores de características en un archivo CSV """
-    with open(output_csv, mode='w', newline='') as file:
-        writer = csv.writer(file)
-        
-        # Escribir encabezados (nombre de la imagen + índices de los vectores)
-        caracteristicaslength = len(next(iter(dicCaracteristicas.values())))  # Obtener tamaño del vector
-        headers = ['Imagen'] + [f'Feature_{i}' for i in range(caracteristicaslength)]
-        writer.writerow(headers)
-        
-        # Escribir los datos
-        for imageName, vectorCaracteristicas in dicCaracteristicas.items():
-            writer.writerow([imageName] + vectorCaracteristicas.tolist())
-
-    print(f"Características guardadas en: {output_csv}")
 
 def extraerDatosYMedatados(file_path, output_meta, output_img,output_csv, index):
     # Cargar el archivo DICOM
@@ -63,6 +45,14 @@ def extraerDatosYMedatados(file_path, output_meta, output_img,output_csv, index)
             f.write(f"{key}: {value}\n")
     print(f"Metadatos guardados en: {saveMetadata}")
     extraerImagenJPG(fileDicom, output_img, output_csv, index)
+
+def inicializarCSV(output_csv, vectorCaracteristicas):
+    """ Crea un nuevo archivo CSV, sobrescribiendo el anterior, e incluye los encabezados """
+    with open(output_csv, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        headers = ['Id'] + [f'Feature_{i}' for i in range(len(vectorCaracteristicas))]
+        writer.writerow(headers)
+    print(f"Archivo CSV inicializado: {output_csv}")
 
 def extraerImagenJPG(fileDicom, output_img, output_csv, index):
     # Extraer datos de imagen
@@ -92,29 +82,27 @@ def extraerImagenJPG(fileDicom, output_img, output_csv, index):
             pixel_array = pixel_array / np.max(pixel_array)
             pixel_array = (pixel_array * 255).astype(np.uint8)
 
-        # Crear la imagen desde el array de píxeles
-        #image = Image.fromarray(pixel_array)
         image = Image.fromarray(pixel_array).convert('L')  # 'L' fuerza la escala de grises
 
         # Guardar la imagen como PNG
         image_file = os.path.join(output_img, f"image_{index}.jpg")
         image.save(image_file)
-        print(f"Imagen {index} guardada en: {image_file}")
-
          #Extraer características con ResNet-18
         vectorCaracteristicas = extraccionCaracteristicas(image_file)
-        #diccionarioCaracteristicas[f'image_{index}.jpg'] = vectorCaracteristicas
-        #print(f"Características extraídas para imagen {index}: {vectorCaracteristicas.shape}")
-        with open(output_csv, mode='a', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow([f'image_{index}.jpg'] + vectorCaracteristicas.tolist())
-
-        print(f"Características extraídas y guardadas para imagen {index}")
-
+        guardarCaracteristicasCsv(output_csv, vectorCaracteristicas,index)
+        
     else:
         print(f"El archivo DICOM {index} no contiene datos de imagen.")
 
-#-----------------------------------------------------------------------------------------------
+def guardarCaracteristicasCsv(output_csv, vectorCaracteristicas,index):
+    if index == 1:
+            inicializarCSV(output_csv, vectorCaracteristicas)
+
+    with open(output_csv, mode='a', newline='') as file:
+        writer = csv.writer(file)
+    
+        writer.writerow([f'image_{index}.jpg'] + vectorCaracteristicas.tolist())
+
 def leerMetadatosPorIndice(metadata_dir, index):
     #Lee los archivos metadata.txt y lo convierte a un diccionario
     metadata_path = os.path.join(metadata_dir, f"metadata_{index}.txt")
@@ -174,7 +162,7 @@ def fusionarCaracteristicasMetadatos(caracteristicas_csv, metadata_dir, salida_c
 
 def main():
 
-    dicom_directory = "ArchivosDICOM"
+    dicom_directory = "Modulo_DICOM\ArchivosDICOM"
     project_root = os.path.dirname(os.path.abspath(__file__))  # 
     output_metadata = os.path.join(project_root, "ResultadoDICOM", "metadata")
     output_images = os.path.join(project_root, "ResultadoDICOM", "images")
@@ -200,9 +188,6 @@ def main():
     for index, dicom_file in enumerate(dicom_files[:15]):
         dicom_file_path = os.path.join(dicom_directory, dicom_file)
         extraerDatosYMedatados(dicom_file_path, output_metadata, output_images, output_csv, index + 1)
-
-if __name__ == "__main__":
-    main()
     base_dir = os.path.dirname(os.path.abspath(__file__))
 
     caracteristicas_csv = os.path.join(base_dir, "ResultadoDICOM", "caracteristicas", "caracteristicas.csv")
@@ -210,3 +195,7 @@ if __name__ == "__main__":
     salida_csv = os.path.join(base_dir, "ResultadoDICOM", "fusionado", "dataset_fusionado.csv")
 
     fusionarCaracteristicasMetadatos(caracteristicas_csv, metadata_dir, salida_csv)
+
+if __name__ == "__main__":
+    main()
+    
