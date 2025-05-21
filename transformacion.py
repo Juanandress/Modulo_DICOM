@@ -50,10 +50,9 @@ def inicializarCSV(output_csv, vectorCaracteristicas):
     """ Crea un nuevo archivo CSV, sobrescribiendo el anterior, e incluye los encabezados """
     with open(output_csv, mode='w', newline='') as file:
         writer = csv.writer(file)
-        headers = ['Imagen'] + [f'Feature_{i}' for i in range(len(vectorCaracteristicas))]
+        headers = ['Id'] + [f'Feature_{i}' for i in range(len(vectorCaracteristicas))]
         writer.writerow(headers)
     print(f"Archivo CSV inicializado: {output_csv}")
-
 
 def extraerImagenJPG(fileDicom, output_img, output_csv, index):
     # Extraer datos de imagen

@@ -1,0 +1,3 @@
+[submodule "fedbiomed"]
+	path = fedbiomed
+	url = https://github.com/gersaing/fedbiomed.git
