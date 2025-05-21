@@ -1,22 +1,61 @@
 import pydicom
 import numpy as np
-import os
+import re
 from PIL import Image
+import os
+import torch
+import torchvision.models as models
+import torchvision.transforms as transforms
+import csv
+from torchvision.models import resnet18, ResNet18_Weights
 
-def extraerDatosYMedatados(file_path, output_dir, index):
+# Cargar el modelo preentrenado correctamente
+resnet18_model = resnet18(weights=ResNet18_Weights.DEFAULT)
+resnet18_model.eval()  # Establecer en modo evaluación
+
+# Extraer características quitando la última capa FC
+extractorCaracteristicas = torch.nn.Sequential(*list(resnet18_model.children())[:-1])
+
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),  # Ajustar tamaño para ResNet-18
+    transforms.ToTensor(),  # Convertir a tensor
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalización basada en ImageNet
+])
+
+def extraccionCaracteristicas(image_path):
+    """ Extrae características de una imagen usando ResNet-18 """
+    image = Image.open(image_path).convert("RGB")  # Convertir a RGB para compatibilidad con el modelo
+    image = transform(image).unsqueeze(0)  # Añadir batch dimension
+
+    with torch.no_grad():
+        caracteristicas = extractorCaracteristicas(image)
+    return caracteristicas.squeeze().numpy()  # Convertir a numpy
+
+def extraerDatosYMedatados(file_path, output_meta, output_img,output_csv, index):
     # Cargar el archivo DICOM
     fileDicom = pydicom.dcmread(file_path)
 
-    # Extraer metadatos
-    metaData = {elem.keyword: elem.value for elem in fileDicom if elem.keyword}
+    # Extraer metadatos sin pixeles
+    metaData = {elem.keyword: elem.value for elem in fileDicom if elem.keyword and elem.keyword != "PixelData"}
 
     # Guardar Metadatos en un  txt
-    saveMetadata = os.path.join(output_dir, f"metadata_{index}.txt")
+    saveMetadata = os.path.join(output_meta, f"metadata_{index}.txt")
     with open(saveMetadata, "w") as f:
         for key, value in metaData.items():
             f.write(f"{key}: {value}\n")
     print(f"Metadatos guardados en: {saveMetadata}")
+    extraerImagenJPG(fileDicom, output_img, output_csv, index)
 
+def inicializarCSV(output_csv, vectorCaracteristicas):
+    """ Crea un nuevo archivo CSV, sobrescribiendo el anterior, e incluye los encabezados """
+    with open(output_csv, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        headers = ['Imagen'] + [f'Feature_{i}' for i in range(len(vectorCaracteristicas))]
+        writer.writerow(headers)
+    print(f"Archivo CSV inicializado: {output_csv}")
+
+
+def extraerImagenJPG(fileDicom, output_img, output_csv, index):
     # Extraer datos de imagen
     if hasattr(fileDicom, "pixel_array"):
         pixel_array = fileDicom.pixel_array
@@ -44,27 +83,120 @@ def extraerDatosYMedatados(file_path, output_dir, index):
             pixel_array = pixel_array / np.max(pixel_array)
             pixel_array = (pixel_array * 255).astype(np.uint8)
 
-        # Crear la imagen desde el array de píxeles
-        image = Image.fromarray(pixel_array)
+        image = Image.fromarray(pixel_array).convert('L')  # 'L' fuerza la escala de grises
 
         # Guardar la imagen como PNG
-        image_file = os.path.join(output_dir, f"image_{index}.png")
+        image_file = os.path.join(output_img, f"image_{index}.jpg")
         image.save(image_file)
-        print(f"Imagen {index} guardada en: {image_file}")
+         #Extraer características con ResNet-18
+        vectorCaracteristicas = extraccionCaracteristicas(image_file)
+        guardarCaracteristicasCsv(output_csv, vectorCaracteristicas,index)
+        
     else:
         print(f"El archivo DICOM {index} no contiene datos de imagen.")
 
-# Ruta del directorio con archivos DICOM y directorio de salida
-dicom_directory = "E:\ImagenesDICOM\listaImagenes"
-output_directory = r"E:\ResultadoDICOM"
+def guardarCaracteristicasCsv(output_csv, vectorCaracteristicas,index):
+    if index == 1:
+            inicializarCSV(output_csv, vectorCaracteristicas)
 
-# Crear el directorio de salida si no existe
-os.makedirs(output_directory, exist_ok=True)
+    with open(output_csv, mode='a', newline='') as file:
+        writer = csv.writer(file)
+    
+        writer.writerow([f'image_{index}.jpg'] + vectorCaracteristicas.tolist())
 
-# Listar todos los archivos DICOM en el directorio
-dicom_files = [f for f in os.listdir(dicom_directory) if f.endswith('.dcm')]
+def leerMetadatosPorIndice(metadata_dir, index):
+    #Lee los archivos metadata.txt y lo convierte a un diccionario
+    metadata_path = os.path.join(metadata_dir, f"metadata_{index}.txt")
+    if not os.path.exists(metadata_path):
+        print(f"No se encontró {metadata_path}. Se omitirá esta fila.")
+        return None
 
-# Procesar n archivos que deseemos, para este caso 5 a modo de prueba
-for index, dicom_file in enumerate(dicom_files[:5]):
-    dicom_file_path = os.path.join(dicom_directory, dicom_file)
-    extraerDatosYMedatados(dicom_file_path, output_directory, index + 1)
+    dic = {}
+    with open(metadata_path, "r") as f:
+        for line in f:
+            if ':' in line:
+                clave, valor = line.strip().split(":", 1)
+                dic[clave.strip()] = valor.strip()
+    return dic
+
+def fusionarCaracteristicasMetadatos(caracteristicas_csv, metadata_dir, salida_csv):
+    # Leer las características
+    with open(caracteristicas_csv, newline='') as f:
+        reader = list(csv.reader(f))
+        encabezados_caracteristicas = reader[0]
+        filas_caracteristicas = reader[1:]
+
+    registros_fusionados = []
+    todas_las_claves = set()
+
+    for fila in filas_caracteristicas:
+        nombre_imagen = fila[0]
+        match = re.search(r'image_(\d+)\.jpg', nombre_imagen)
+        if not match:
+            print(f"Nombre de imagen no válido: {nombre_imagen}")
+            continue
+
+        index = int(match.group(1))
+        metadatos = leerMetadatosPorIndice(metadata_dir, index)
+        if metadatos is None:
+            continue
+
+        todas_las_claves.update(metadatos.keys())
+        registros_fusionados.append((fila, metadatos))
+
+    claves_ordenadas = sorted(todas_las_claves)
+
+    # Crear carpeta de salida si no existe
+    os.makedirs(os.path.dirname(salida_csv), exist_ok=True)
+
+    # Escribir el CSV final
+    with open(salida_csv, mode='w', newline='') as f_out:
+        writer = csv.writer(f_out)
+        encabezado_final = encabezados_caracteristicas + claves_ordenadas
+        writer.writerow(encabezado_final)
+
+        for fila_carac, metadatos in registros_fusionados:
+            fila_meta = [metadatos.get(clave, "") for clave in claves_ordenadas]
+            writer.writerow(fila_carac + fila_meta)
+
+    print(f"Dataset fusionado guardado en: {salida_csv}")
+
+def main():
+
+    dicom_directory = "Modulo_DICOM\ArchivosDICOM"
+    project_root = os.path.dirname(os.path.abspath(__file__))  # 
+    output_metadata = os.path.join(project_root, "ResultadoDICOM", "metadata")
+    output_images = os.path.join(project_root, "ResultadoDICOM", "images")
+    output_csv_dir = os.path.join(project_root, "ResultadoDICOM", "caracteristicas")
+
+    output_csv = os.path.join(output_csv_dir, "caracteristicas.csv")
+
+
+    # Crear  directorios si no existen
+    os.makedirs(output_metadata, exist_ok=True)
+    os.makedirs(output_images, exist_ok=True)
+    os.makedirs(output_csv_dir, exist_ok=True)
+    #dicom_files = [f for f in os.listdir(dicom_directory) if f.endswith('.dcm')]
+    print("Ruta absoluta buscada:", os.path.abspath(dicom_directory))
+    dicom_files = []
+    for subdir, _, files in os.walk(dicom_directory):  # Recorrer subdirectorios
+        print("Despues del FOR")
+        for file in files:
+            if file.endswith(".dcm"):
+                dicom_files.append(os.path.abspath(os.path.join(subdir, file)))
+
+    # Procesar n archivos que deseemos, para este caso 5 a modo de prueba
+    for index, dicom_file in enumerate(dicom_files[:15]):
+        dicom_file_path = os.path.join(dicom_directory, dicom_file)
+        extraerDatosYMedatados(dicom_file_path, output_metadata, output_images, output_csv, index + 1)
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+
+    caracteristicas_csv = os.path.join(base_dir, "ResultadoDICOM", "caracteristicas", "caracteristicas.csv")
+    metadata_dir = os.path.join(base_dir, "ResultadoDICOM", "metadata")
+    salida_csv = os.path.join(base_dir, "ResultadoDICOM", "fusionado", "dataset_fusionado.csv")
+
+    fusionarCaracteristicasMetadatos(caracteristicas_csv, metadata_dir, salida_csv)
+
+if __name__ == "__main__":
+    main()
+    
