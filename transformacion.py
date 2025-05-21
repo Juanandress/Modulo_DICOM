@@ -22,7 +22,6 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalización basada en ImageNet
 ])
 
-
 def extraccionCaracteristicas(image_path):
     """ Extrae características de una imagen usando ResNet-18 """
     image = Image.open(image_path).convert("RGB")  # Convertir a RGB para compatibilidad con el modelo
@@ -54,7 +53,6 @@ def inicializarCSV(output_csv, vectorCaracteristicas):
         headers = ['Imagen'] + [f'Feature_{i}' for i in range(len(vectorCaracteristicas))]
         writer.writerow(headers)
     print(f"Archivo CSV inicializado: {output_csv}")
-
 
 def extraerImagenJPG(fileDicom, output_img, output_csv, index):
     # Extraer datos de imagen
