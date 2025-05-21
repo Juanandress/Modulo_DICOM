@@ -54,7 +54,6 @@ def inicializarCSV(output_csv, vectorCaracteristicas):
         writer.writerow(headers)
     print(f"Archivo CSV inicializado: {output_csv}")
 
-
 def extraerImagenJPG(fileDicom, output_img, output_csv, index):
     # Extraer datos de imagen
     if hasattr(fileDicom, "pixel_array"):
