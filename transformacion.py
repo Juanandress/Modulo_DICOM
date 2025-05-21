@@ -22,7 +22,6 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalización basada en ImageNet
 ])
 
-
 def extraccionCaracteristicas(image_path):
     """ Extrae características de una imagen usando ResNet-18 """
     image = Image.open(image_path).convert("RGB")  # Convertir a RGB para compatibilidad con el modelo
