@@ -26,7 +26,6 @@ def extraccionCaracteristicas(image_path):
     """ Extrae características de una imagen usando ResNet-18 """
     image = Image.open(image_path).convert("RGB")  # Convertir a RGB para compatibilidad con el modelo
     image = transform(image).unsqueeze(0)  # Añadir batch dimension
-
     with torch.no_grad():
         caracteristicas = extractorCaracteristicas(image)
     return caracteristicas.squeeze().numpy()  # Convertir a numpy
@@ -162,12 +161,11 @@ def fusionarCaracteristicasMetadatos(caracteristicas_csv, metadata_dir, salida_c
 
 def main():
 
-    dicom_directory = "Modulo_DICOM\ArchivosDICOM"
+    dicom_directory = "ArchivosDICOM"
     project_root = os.path.dirname(os.path.abspath(__file__))  # 
     output_metadata = os.path.join(project_root, "ResultadoDICOM", "metadata")
     output_images = os.path.join(project_root, "ResultadoDICOM", "images")
     output_csv_dir = os.path.join(project_root, "ResultadoDICOM", "caracteristicas")
-
     output_csv = os.path.join(output_csv_dir, "caracteristicas.csv")
 
 
@@ -179,7 +177,6 @@ def main():
     print("Ruta absoluta buscada:", os.path.abspath(dicom_directory))
     dicom_files = []
     for subdir, _, files in os.walk(dicom_directory):  # Recorrer subdirectorios
-        print("Despues del FOR")
         for file in files:
             if file.endswith(".dcm"):
                 dicom_files.append(os.path.abspath(os.path.join(subdir, file)))
