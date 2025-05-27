@@ -84,7 +84,7 @@ def extraerImagenJPG(fileDicom, output_img, output_csv, index):
         image = Image.fromarray(pixel_array).convert('L')  # 'L' fuerza la escala de grises
 
         # Guardar la imagen como PNG
-        image_file = os.path.join(output_img, f"image_{index}.jpg")
+        image_file = os.path.join(output_img, f"{index}.jpg")
         image.save(image_file)
          #Extraer características con ResNet-18
         vectorCaracteristicas = extraccionCaracteristicas(image_file)
@@ -100,7 +100,7 @@ def guardarCaracteristicasCsv(output_csv, vectorCaracteristicas,index):
     with open(output_csv, mode='a', newline='') as file:
         writer = csv.writer(file)
     
-        writer.writerow([f'image_{index}.jpg'] + vectorCaracteristicas.tolist())
+        writer.writerow([index] + vectorCaracteristicas.tolist())
 
 def leerMetadatosPorIndice(metadata_dir, index):
     #Lee los archivos metadata.txt y lo convierte a un diccionario
@@ -129,12 +129,8 @@ def fusionarCaracteristicasMetadatos(caracteristicas_csv, metadata_dir, salida_c
 
     for fila in filas_caracteristicas:
         nombre_imagen = fila[0]
-        match = re.search(r'image_(\d+)\.jpg', nombre_imagen)
-        if not match:
-            print(f"Nombre de imagen no válido: {nombre_imagen}")
-            continue
 
-        index = int(match.group(1))
+        index = int(nombre_imagen)
         metadatos = leerMetadatosPorIndice(metadata_dir, index)
         if metadatos is None:
             continue
@@ -182,7 +178,7 @@ def main():
                 dicom_files.append(os.path.abspath(os.path.join(subdir, file)))
 
     # Procesar n archivos que deseemos, para este caso 5 a modo de prueba
-    for index, dicom_file in enumerate(dicom_files[:15]):
+    for index, dicom_file in enumerate(dicom_files[:208]):
         dicom_file_path = os.path.join(dicom_directory, dicom_file)
         extraerDatosYMedatados(dicom_file_path, output_metadata, output_images, output_csv, index + 1)
     base_dir = os.path.dirname(os.path.abspath(__file__))
