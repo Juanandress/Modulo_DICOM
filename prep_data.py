@@ -57,27 +57,30 @@ def limpiarCsv():
     
     # Identificar columnas generadas por One-Hot Encoding
     col_convert = [col for col in df_cod.columns if col.startswith(("PatientOrientation_", "PhotometricInterpretation_", "PixelIntensityRelationship_", "DetectorType_"))]
-    
-    # Aplicar .astype(int) solo en estas columnas
-    df_cod[col_convert] = df_cod[col_convert].astype(int)
-    df_cod["Diagnostico"] = 1  # Asumimos que todas son inicialmente negativ
-    df_cod.loc[-8:, "Diagnostico"] = 0  # Seleccionamos las últimas 8 filas
-    df_cod.iloc[-8:, df_cod.columns.get_loc("Diagnostico")] = 0
-    df_cod.to_csv('dataset_cod.csv', index = False)
-    print("CSV cod guardado ")
     return df_cod
     
 
 def normalizar(df):
-
     scaler = MinMaxScaler()
     df_normalized = pd.DataFrame(scaler.fit_transform(df), columns=df.columns)
+    flag = int(input('Seleccione 0 o 1: '))
+    if flag == 0:
+        df_normalized['Diagnostic'] = 0
+    elif flag == 1:
+        df_normalized['Diagnostic'] = 1
     df_normalized.to_csv('breast_cancer.csv', index = False)
     print("CSV norm guardado ")
+
+def asignarDiagnostico(df):
+    df['Diagnostic'] = 1
+    df.to_csv('breast_cancerAsignado.csv', index=False)
+    print('Asignación completada')
 
 def main():
     df = limpiarCsv()
     normalizar(df)
+
+
 
 
 if __name__ == "__main__":
