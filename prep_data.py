@@ -63,22 +63,23 @@ def limpiarCsv():
 def normalizar(df):
     scaler = MinMaxScaler()
     df_normalized = pd.DataFrame(scaler.fit_transform(df), columns=df.columns)
-    flag = int(input('Seleccione 0 o 1: '))
-    if flag == 0:
-        df_normalized['Diagnostic'] = 0
-    elif flag == 1:
-        df_normalized['Diagnostic'] = 1
-    df_normalized.to_csv('breast_cancer.csv', index = False)
     print("CSV norm guardado ")
+    return df_normalized
 
 def asignarDiagnostico(df):
     df['Diagnostic'] = 1
-    df.to_csv('breast_cancerAsignado.csv', index=False)
+    flag = int(input('Seleccione 0 o 1: '))
+    if flag == 0:
+        df['Diagnostic'] = 0
+    elif flag == 1:
+        df['Diagnostic'] = 1
+    df.to_csv('breast_cancer.csv', index=False)
     print('Asignación completada')
 
 def main():
     df = limpiarCsv()
     normalizar(df)
+    asignarDiagnostico(df)
 
 
 
